@@ -8,6 +8,7 @@ public class GamePiece : MonoBehaviour
     public int xIndex;
     public int yIndex;
     public InterType interpolation = InterType.SmootherStep;
+    private Board m_board;
     private bool isMoving = false;
     public enum InterType
     {
@@ -29,6 +30,10 @@ public class GamePiece : MonoBehaviour
             Move(xIndex - 1, yIndex, 0.5f);
         }
     }
+    public void Init(Board b)
+    {
+        m_board = b;
+    }
     public void SetCoord(int x, int y)
     {
         xIndex = x;
@@ -49,8 +54,8 @@ public class GamePiece : MonoBehaviour
         {
             if (Vector3.Distance(transform.position, dest) < 0.01f)
             {
-                transform.position = dest;
-                SetCoord((int)dest.x, (int)dest.y);
+
+                m_board.PlaceGamePiece(this,(int)dest.x,(int)dest.y);
                 break;
             }
             time += Time.deltaTime;

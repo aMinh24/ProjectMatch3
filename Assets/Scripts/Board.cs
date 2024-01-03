@@ -9,16 +9,20 @@ public class Board : MonoBehaviour
     public int width;
     public int height;
     public int borderSize;
+    public float swapTime;
+
+    Tile m_clickedTile;
+    Tile m_targetTile;
 
     public GameObject tilePrefab;
     public GameObject[] gamePiecePrefabs;
 
     private Tile[,] m_AllTiles;
-    GameObject[,] m_AllGamePieces;
+    GamePiece[,] m_AllGamePieces;
     void Start()
     {
         m_AllTiles = new Tile[width, height];
-        m_AllGamePieces = new GameObject[width, height];
+        m_AllGamePieces = new GamePiece[width, height];
         SetupTiles();
         SetupCamera();
         FillRandom();
@@ -39,22 +43,28 @@ public class Board : MonoBehaviour
     }
     private void SetupCamera()
     {
-        Camera.main.transform.position = new Vector3((float)(width-1) / 2, (float)(height-1) / 2, -10f);
-        float aspectRatio = Screen.width*1f / Screen.height;
-        float verticalSize = height*1f/2 +borderSize;
-        float horizontalSize = (width*1f/2 + borderSize) / aspectRatio;
-        Camera.main.orthographicSize = verticalSize>horizontalSize?verticalSize:horizontalSize;
+        Camera.main.transform.position = new Vector3((float)(width - 1) / 2, (float)(height - 1) / 2, -10f);
+        float aspectRatio = Screen.width * 1f / Screen.height;
+        float verticalSize = height * 1f / 2 + borderSize;
+        float horizontalSize = (width * 1f / 2 + borderSize) / aspectRatio;
+        Camera.main.orthographicSize = verticalSize > horizontalSize ? verticalSize : horizontalSize;
     }
     private GameObject GetRandomPiece()
     {
-        int randomIndx = Random.Range(0,gamePiecePrefabs.Length);
+        int randomIndx = Random.Range(0, gamePiecePrefabs.Length);
         return gamePiecePrefabs[randomIndx];
     }
-    private void PlaceGamePiece(GamePiece gamePiece,int x,int y)
+    public void PlaceGamePiece(GamePiece gamePiece, int x, int y)
     {
         gamePiece.transform.position = new Vector3(x, y, 0);
         gamePiece.transform.rotation = Quaternion.identity;
+        if(IsWithinBounds(x, y))
+            m_AllGamePieces[x, y] = gamePiece;
         gamePiece.SetCoord(x, y);
+    }
+    bool IsWithinBounds(int x, int y)
+    {
+        return x>=0 && y>=0 && x<width && y<height;
     }
     private void FillRandom()
     {
@@ -63,8 +73,49 @@ public class Board : MonoBehaviour
             for (int j = 0; j < height; j++)
             {
                 GameObject randomPiece = Instantiate(GetRandomPiece(), Vector3.zero, Quaternion.identity);
-                PlaceGamePiece(randomPiece.GetComponent<GamePiece>(),i,j);
+
+                randomPiece.GetComponent<GamePiece>().Init(this);
+                PlaceGamePiece(randomPiece.GetComponent<GamePiece>(), i, j);
+                randomPiece.transform.parent = transform;
             }
         }
+    }
+    public void ClickTile(Tile tile)
+    {
+        if (m_clickedTile == null)
+        {
+            m_clickedTile = tile;
+        }
+    }
+    public void DragToTile(Tile tile)
+    {
+        if (m_clickedTile != null)
+        {
+            m_targetTile = tile;
+        }
+    }
+    public void ReleaseTile()
+    {
+        if (m_clickedTile != null && m_targetTile != null&&IsNextTo(m_clickedTile,m_targetTile))
+        {
+            GamePiece clickPiece = m_AllGamePieces[m_clickedTile.xIndex, m_clickedTile.yIndex];
+            GamePiece targetPiece = m_AllGamePieces[m_targetTile.xIndex,m_targetTile.yIndex];
+            clickPiece.Move(m_targetTile.xIndex, m_targetTile.yIndex, swapTime);
+            targetPiece.Move(m_clickedTile.xIndex,m_clickedTile.yIndex,swapTime);
+            m_clickedTile = null;
+            m_targetTile = null;
+        }
+    }
+    bool IsNextTo(Tile start,Tile end)
+    {
+        if(Mathf.Abs(start.xIndex-end.xIndex)==1 && start.yIndex == end.yIndex)
+        {
+            return true;
+        }
+        if (Mathf.Abs(start.yIndex - end.yIndex) == 1 && start.xIndex == end.xIndex)
+        {
+            return true;
+        }
+        return false;
     }
 }
