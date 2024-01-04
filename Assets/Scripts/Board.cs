@@ -1,8 +1,9 @@
-using JetBrains.Annotations;
 using System.Collections;
 using System.Collections.Generic;
-using System.Net.NetworkInformation;
+using System.Linq;
+
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class Board : MonoBehaviour
 {
@@ -26,6 +27,7 @@ public class Board : MonoBehaviour
         SetupTiles();
         SetupCamera();
         FillRandom();
+        //HighlightMatches();
     }
     private void SetupTiles()
     {
@@ -89,21 +91,46 @@ public class Board : MonoBehaviour
     }
     public void DragToTile(Tile tile)
     {
-        if (m_clickedTile != null)
+        if (m_clickedTile != null && IsNextTo(m_clickedTile, tile))
         {
             m_targetTile = tile;
         }
     }
     public void ReleaseTile()
     {
-        if (m_clickedTile != null && m_targetTile != null && IsNextTo(m_clickedTile, m_targetTile))
+        if (m_clickedTile != null && m_targetTile != null)
         {
-            GamePiece clickPiece = m_AllGamePieces[m_clickedTile.xIndex, m_clickedTile.yIndex];
-            GamePiece targetPiece = m_AllGamePieces[m_targetTile.xIndex, m_targetTile.yIndex];
-            clickPiece.Move(m_targetTile.xIndex, m_targetTile.yIndex, swapTime);
-            targetPiece.Move(m_clickedTile.xIndex, m_clickedTile.yIndex, swapTime);
-            m_clickedTile = null;
-            m_targetTile = null;
+            SwitchTile(m_clickedTile,m_targetTile);
+        }
+        m_clickedTile = null;
+        m_targetTile = null;
+    }
+    void SwitchTile(Tile clickedTile, Tile targetTile)
+    {
+        StartCoroutine(SwitchTileRoutine(clickedTile, targetTile));
+    }
+    IEnumerator SwitchTileRoutine(Tile clickedTile,Tile targetTile)
+    {
+        GamePiece clickPiece = m_AllGamePieces[clickedTile.xIndex, clickedTile.yIndex];
+        GamePiece targetPiece = m_AllGamePieces[targetTile.xIndex, targetTile.yIndex];
+        if (clickPiece != null && targetPiece != null)
+        {
+            clickPiece.Move(targetTile.xIndex, targetTile.yIndex, swapTime);
+            targetPiece.Move(clickedTile.xIndex, clickedTile.yIndex, swapTime);
+            yield return new WaitForSeconds(swapTime);
+
+            List<GamePiece> clickedPieceMatches = FindMatchesAt(clickedTile.xIndex, clickedTile.yIndex);
+            List<GamePiece> targetPieceMatches = FindMatchesAt(targetTile.xIndex, targetTile.yIndex);
+
+            if (clickedPieceMatches.Count == 0 && targetPieceMatches.Count == 0)
+            {
+                clickPiece.Move(clickedTile.xIndex, clickedTile.yIndex, swapTime);
+                targetPiece.Move(targetTile.xIndex, targetTile.yIndex, swapTime);
+                yield return new WaitForSeconds(swapTime);
+            }
+
+            HighlightMatchesAt(clickedTile.xIndex, clickedTile.yIndex);
+            HighlightMatchesAt(targetTile.xIndex,targetTile.yIndex);
         }
     }
     bool IsNextTo(Tile start, Tile end)
@@ -133,8 +160,8 @@ public class Board : MonoBehaviour
         int maxValue = width > height ? width : height;
         for (int i = 1; i < maxValue; i++)
         {
-            nextX = (int)searchDir.x * i;
-            nextY = (int)searchDir.y * i;
+            nextX = startX + (int)searchDir.x * i;
+            nextY = startY + (int)searchDir.y * i;
             if (!IsWithinBounds(nextX, nextY))
             {
                 break;
@@ -146,7 +173,73 @@ public class Board : MonoBehaviour
             }
             else break;
         }
-        if(matches.Count>=  minLength) { return matches; }
+        if (matches.Count >= minLength)
+        {
+            return matches;
+        }
         return null;
     }
+    List<GamePiece> FindVerticalMatches(int startX, int startY, int minLength = 2)
+    {
+        List<GamePiece> upwardMatches = FindMatches(startX, startY, new Vector2(0, 1), 2);
+        List<GamePiece> downwardMatches = FindMatches(startX, startY, new Vector2(0, -1), 2);
+        if (upwardMatches == null) upwardMatches = new List<GamePiece>();
+        if (downwardMatches == null) downwardMatches = new List<GamePiece>();
+        var combinedMatches = upwardMatches.Union(downwardMatches).ToList();
+        return combinedMatches.Count >= minLength ? combinedMatches : null;
+    }
+    List<GamePiece> FindHorizontalMatches(int startX, int startY, int minLength = 2)
+    {
+        List<GamePiece> rightMatches = FindMatches(startX, startY, new Vector2(1, 0), 2);
+        List<GamePiece> leftMatches = FindMatches(startX, startY, new Vector2(-1, 0), 2);
+        if (rightMatches == null) rightMatches = new List<GamePiece>();
+        if (leftMatches == null) leftMatches = new List<GamePiece>();
+        var combinedMatches = rightMatches.Union(leftMatches).ToList();
+        return combinedMatches.Count >= minLength ? combinedMatches : null;
+    }
+    private void HighlightMatches()
+    {
+        for (int i = 0; i < width; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                HighlightMatchesAt(i, j);
+            }
+        }
+    }
+
+    private void HighlightMatchesAt(int x, int y)
+    {
+        HighlightTileOff(x, y);
+        List<GamePiece> combinedMatches = FindMatchesAt(x, y);
+        if (combinedMatches.Count > 0)
+        {
+            foreach (GamePiece piece in combinedMatches)
+            {
+                HighlightTileOn(piece.xIndex, piece.yIndex, piece.GetComponent<SpriteRenderer>().color);
+            }
+        }
+    }
+
+    private void HighlightTileOn(int x, int y, Color col)
+    {
+        SpriteRenderer sprite = m_AllTiles[x, y].GetComponent<SpriteRenderer>();
+        sprite.color = col;
+    }
+    private void HighlightTileOff(int x, int y)
+    {
+        SpriteRenderer sprite = m_AllTiles[x, y].GetComponent<SpriteRenderer>();
+        sprite.color = new Color(sprite.color.r, sprite.color.g, sprite.color.b, 0);
+    }
+
+    private List<GamePiece> FindMatchesAt(int x, int y, int minLength = 3)
+    {
+        List<GamePiece> horizontalMatches = FindHorizontalMatches(x, y, minLength);
+        List<GamePiece> verticalMatches = FindVerticalMatches(x, y, minLength);
+        if (horizontalMatches == null) horizontalMatches = new List<GamePiece>();
+        if (verticalMatches == null) verticalMatches = new List<GamePiece>();
+        var combinedMatches = horizontalMatches.Union(verticalMatches).ToList();
+        return combinedMatches;
+    }
+
 }

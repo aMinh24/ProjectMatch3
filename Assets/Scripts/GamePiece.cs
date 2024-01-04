@@ -30,15 +30,7 @@ public class GamePiece : MonoBehaviour
     }
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.RightArrow))
-        {
 
-            Move(xIndex + 1, yIndex, 0.5f);
-        }
-        if (Input.GetKeyDown(KeyCode.LeftArrow))
-        {
-            Move(xIndex - 1, yIndex, 0.5f);
-        }
     }
     public void Init(Board b)
     {
