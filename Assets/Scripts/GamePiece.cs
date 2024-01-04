@@ -18,6 +18,16 @@ public class GamePiece : MonoBehaviour
         SmoothStep,
         SmootherStep
     }
+    public MatchValue matchValue;
+    public enum MatchValue
+    {
+        Yellow,
+        Red,
+        Blue,
+        Cyan,
+        Green,
+        Magenta
+    }
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.RightArrow))

@@ -58,13 +58,13 @@ public class Board : MonoBehaviour
     {
         gamePiece.transform.position = new Vector3(x, y, 0);
         gamePiece.transform.rotation = Quaternion.identity;
-        if(IsWithinBounds(x, y))
+        if (IsWithinBounds(x, y))
             m_AllGamePieces[x, y] = gamePiece;
         gamePiece.SetCoord(x, y);
     }
     bool IsWithinBounds(int x, int y)
     {
-        return x>=0 && y>=0 && x<width && y<height;
+        return x >= 0 && y >= 0 && x < width && y < height;
     }
     private void FillRandom()
     {
@@ -96,19 +96,19 @@ public class Board : MonoBehaviour
     }
     public void ReleaseTile()
     {
-        if (m_clickedTile != null && m_targetTile != null&&IsNextTo(m_clickedTile,m_targetTile))
+        if (m_clickedTile != null && m_targetTile != null && IsNextTo(m_clickedTile, m_targetTile))
         {
             GamePiece clickPiece = m_AllGamePieces[m_clickedTile.xIndex, m_clickedTile.yIndex];
-            GamePiece targetPiece = m_AllGamePieces[m_targetTile.xIndex,m_targetTile.yIndex];
+            GamePiece targetPiece = m_AllGamePieces[m_targetTile.xIndex, m_targetTile.yIndex];
             clickPiece.Move(m_targetTile.xIndex, m_targetTile.yIndex, swapTime);
-            targetPiece.Move(m_clickedTile.xIndex,m_clickedTile.yIndex,swapTime);
+            targetPiece.Move(m_clickedTile.xIndex, m_clickedTile.yIndex, swapTime);
             m_clickedTile = null;
             m_targetTile = null;
         }
     }
-    bool IsNextTo(Tile start,Tile end)
+    bool IsNextTo(Tile start, Tile end)
     {
-        if(Mathf.Abs(start.xIndex-end.xIndex)==1 && start.yIndex == end.yIndex)
+        if (Mathf.Abs(start.xIndex - end.xIndex) == 1 && start.yIndex == end.yIndex)
         {
             return true;
         }
@@ -117,5 +117,36 @@ public class Board : MonoBehaviour
             return true;
         }
         return false;
+    }
+    List<GamePiece> FindMatches(int startX, int startY, Vector2 searchDir, int minLength = 3)
+    {
+        List<GamePiece> matches = new List<GamePiece>();
+        GamePiece startPiece = null;
+        if (IsWithinBounds(startX, startY))
+        {
+            startPiece = m_AllGamePieces[startX, startY];
+            matches.Add(startPiece);
+        }
+        else return null;
+        int nextX;
+        int nextY;
+        int maxValue = width > height ? width : height;
+        for (int i = 1; i < maxValue; i++)
+        {
+            nextX = (int)searchDir.x * i;
+            nextY = (int)searchDir.y * i;
+            if (!IsWithinBounds(nextX, nextY))
+            {
+                break;
+            }
+            GamePiece nextPiece = m_AllGamePieces[nextX, nextY];
+            if (nextPiece.matchValue == startPiece.matchValue && !matches.Contains(nextPiece))
+            {
+                matches.Add(nextPiece);
+            }
+            else break;
+        }
+        if(matches.Count>=  minLength) { return matches; }
+        return null;
     }
 }
