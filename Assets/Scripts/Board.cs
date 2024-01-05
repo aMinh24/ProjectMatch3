@@ -26,7 +26,7 @@ public class Board : MonoBehaviour
         m_AllGamePieces = new GamePiece[width, height];
         SetupTiles();
         SetupCamera();
-        FillRandom();
+        FillBoard();
         //HighlightMatches();
     }
     private void SetupTiles()
@@ -68,19 +68,40 @@ public class Board : MonoBehaviour
     {
         return x >= 0 && y >= 0 && x < width && y < height;
     }
-    private void FillRandom()
+    private void FillBoard()
     {
         for (int i = 0; i < width; i++)
         {
             for (int j = 0; j < height; j++)
             {
-                GameObject randomPiece = Instantiate(GetRandomPiece(), Vector3.zero, Quaternion.identity);
-
-                randomPiece.GetComponent<GamePiece>().Init(this);
-                PlaceGamePiece(randomPiece.GetComponent<GamePiece>(), i, j);
-                randomPiece.transform.parent = transform;
+                int maxIter = 100;
+                int count = 0;
+                GamePiece gamePiece = FillRandomAt(i, j);
+                while (HasMatchesOnFill(i, j))
+                {
+                    ClearPieceAt(i, j);
+                    gamePiece = FillRandomAt(i, j);
+                    count++;
+                    if (count == maxIter) break;
+                }
             }
         }
+    }
+    private GamePiece FillRandomAt(int x, int y)
+    {
+        GameObject randomPiece = Instantiate(GetRandomPiece(), Vector3.zero, Quaternion.identity);
+        randomPiece.GetComponent<GamePiece>().Init(this);
+        PlaceGamePiece(randomPiece.GetComponent<GamePiece>(), x, y);
+        randomPiece.transform.parent = transform;
+        return randomPiece.GetComponent<GamePiece>();
+    }
+    private bool HasMatchesOnFill(int x, int y, int minLength = 3)
+    {
+        List<GamePiece> leftMatches = FindMatches(x, y, new Vector2(-1, 0));
+        List<GamePiece> downwardMatches = FindMatches(x, y, new Vector2(0, -1));
+        if (leftMatches == null) leftMatches = new List<GamePiece>();
+        if (downwardMatches == null) downwardMatches = new List<GamePiece>();
+        return (leftMatches.Count>0||downwardMatches.Count>0);
     }
     public void ClickTile(Tile tile)
     {
@@ -128,9 +149,14 @@ public class Board : MonoBehaviour
                 targetPiece.Move(targetTile.xIndex, targetTile.yIndex, swapTime);
                 yield return new WaitForSeconds(swapTime);
             }
-
-            HighlightMatchesAt(clickedTile.xIndex, clickedTile.yIndex);
-            HighlightMatchesAt(targetTile.xIndex,targetTile.yIndex);
+            else
+            {
+                ClearPieceAt(clickedPieceMatches);
+                ClearPieceAt(targetPieceMatches);
+                //HighlightMatchesAt(clickedTile.xIndex, clickedTile.yIndex);
+                //HighlightMatchesAt(targetTile.xIndex, targetTile.yIndex);
+            }
+            
         }
     }
     bool IsNextTo(Tile start, Tile end)
@@ -167,6 +193,7 @@ public class Board : MonoBehaviour
                 break;
             }
             GamePiece nextPiece = m_AllGamePieces[nextX, nextY];
+            if (nextPiece == null) break;
             if (nextPiece.matchValue == startPiece.matchValue && !matches.Contains(nextPiece))
             {
                 matches.Add(nextPiece);
@@ -207,7 +234,6 @@ public class Board : MonoBehaviour
             }
         }
     }
-
     private void HighlightMatchesAt(int x, int y)
     {
         HighlightTileOff(x, y);
@@ -220,7 +246,6 @@ public class Board : MonoBehaviour
             }
         }
     }
-
     private void HighlightTileOn(int x, int y, Color col)
     {
         SpriteRenderer sprite = m_AllTiles[x, y].GetComponent<SpriteRenderer>();
@@ -231,7 +256,6 @@ public class Board : MonoBehaviour
         SpriteRenderer sprite = m_AllTiles[x, y].GetComponent<SpriteRenderer>();
         sprite.color = new Color(sprite.color.r, sprite.color.g, sprite.color.b, 0);
     }
-
     private List<GamePiece> FindMatchesAt(int x, int y, int minLength = 3)
     {
         List<GamePiece> horizontalMatches = FindHorizontalMatches(x, y, minLength);
@@ -241,5 +265,31 @@ public class Board : MonoBehaviour
         var combinedMatches = horizontalMatches.Union(verticalMatches).ToList();
         return combinedMatches;
     }
-
+    private void ClearPieceAt(int x, int y)
+    {
+        GamePiece peaceToClear = m_AllGamePieces[x, y];
+        if (peaceToClear != null)
+        {
+            m_AllGamePieces[x, y] = null;
+            Destroy(peaceToClear.gameObject);
+        }
+        HighlightTileOff(x, y);
+    }
+    private void ClearPieceAt(List<GamePiece> gamePieces)
+    {
+        foreach (GamePiece piece in gamePieces)
+        {
+            ClearPieceAt(piece.xIndex, piece.yIndex);
+        }
+    }
+    private void ClearBoard()
+    {
+        for (int i = 0; i < width; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                ClearPieceAt(i, j);
+            }
+        }
+    }
 }
