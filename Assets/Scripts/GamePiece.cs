@@ -48,7 +48,6 @@ public class GamePiece : MonoBehaviour
     }
     private IEnumerator MoveRoutine(Vector3 dest, float timeToMove)
     {
-
         isMoving = true;
         Vector3 startPos = transform.position;
         float time = 0;
